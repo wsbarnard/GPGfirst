@@ -137,7 +137,7 @@ def calcHeuristic(point): #point was previously not a thing...but now we can her
 def coordHeuristic(pointX, pointY):
     global goalPosex
     global goalPoxey
-    return abs(pointX - goalPosex) + abs(pointY - goalPosey)
+    return float((int(abs(pointX - goalPosex) + abs(pointY - goalPosey)) * 10)) / 10
 
 class Node:
     def __init__(self, x, y, h, chance): #removed neighbors.
@@ -145,6 +145,7 @@ class Node:
         self.y = y
         self.h = h
         self.chance = chance
+
 
 def makeGraph():
     global mapWidth
@@ -161,14 +162,13 @@ def makeGraph():
     
     for ind in range(len(mapData)):
         # import pdb; pdb.set_trace()
-        tempx = (mapRes * ((ind % (mapWidth)))) + mapOrigin.position.x +0.1
-        tempy = (mapRes * int((ind / mapWidth))) + mapOrigin.position.y +0.1
+        tempx = int((((mapRes * ((ind % (mapWidth)))) + mapOrigin.position.x + 0.1)) * 10)
+        tempy = int((((mapRes * int((ind / mapWidth))) + mapOrigin.position.y + 0.1)) * 10)
 
-        xPlace = (tempx) - (tempx%0.2)
-        yPlace = (tempy) - (tempy%0.2)
-        h = coordHeuristic(xPlace, yPlace)
-        if mapData[ind] == 100: #if a wall
-            h = h * 1000  #h is FUCKING MASSIVE
+        xPlace = float(tempx) / 10
+        yPlace = float(tempy) / 10
+
+        h = coordHeuristic(xPlace, yPlace) + (mapData[ind]*100) #make it very difficult to go t\hrough obstacle 
         N = Node(xPlace, yPlace, h, mapData[ind])
         # print "%f, %f"%(N.x, N.y)
         # print N.heuristic
@@ -183,6 +183,34 @@ def makeGraph():
             i+1
         N.self = (i*(mapWidth-1))+ ind
         # print N.self
+
+def makeGraph2():
+    global mapWidth
+    global mapData
+    global mapOrigin
+    global mapGraph
+
+    mapGraph = []
+    
+    xtemp = 0
+    ytemp = 0
+
+    for ind in range(len(mapData)):
+        xtemp = int((((mapRes * ((ind % (mapWidth)))) + mapOrigin.position.x + 0.1)) * 10)
+        ytemp = int((((mapRes * int((ind / mapWidth))) + mapOrigin.position.y + 0.1)) * 10)
+
+        #print "temp %f, %f" %(xtemp, ytemp)
+        
+        xMapCoord = float(xtemp) / 10
+        yMapCoord = float(ytemp) / 10
+
+        #print "legit %f, %f" %(xMapCoord, yMapCoord)
+
+        h = coordHeuristic(xMapCoord, yMapCoord) + (mapData[ind]*100) #make it very difficult to go through obstacle
+
+        N = (xMapCoord, yMapCoord, h, mapData[ind])
+        
+        mapGraph.append(N)
 
 
 def aStar(graph):
@@ -269,6 +297,7 @@ def aStar(graph):
         print ind.self
 
 
+
       
 
 if __name__ == '__main__':
@@ -287,6 +316,8 @@ if __name__ == '__main__':
     global mapList
     global mapOrigin
     global nodeList
+    global mapGraph
+
     i = 1
 
     robotPosex = 0
@@ -302,19 +333,25 @@ if __name__ == '__main__':
     rospy.sleep(1)
     subsSetup()
     rospy.sleep(1)
-    makeGraph()
+    #makeGraph2()
     rospy.sleep(0.5)
     while goalPosex == 0:
         pass
-    rospy.sleep(1) 
-    aStar(mapList)
     rospy.sleep(1)
+    makeGraph()
+   # aStar(mapList)
+    #rospy.sleep(1)
+ 
+    print mapList
 
     createCell(4.2,4.2, "redCells")
     rospy.sleep(0.3)
     addCell(-3, -3, "redCells")
     rospy.sleep(0.3)
 
+    createCell(0, 0, "greenCells")
+    rospy.sleep(0.1)
+    addCell(1, 1, "greenCells")
 
 
 # sleep to allow initialization, spin waits for an event (btn press)
