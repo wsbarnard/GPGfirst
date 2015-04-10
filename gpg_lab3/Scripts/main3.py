@@ -188,7 +188,6 @@ def makeGraph2():
     global mapWidth
     global mapData
     global mapOrigin
-    global mapGraph
 
     mapGraph = []
     
@@ -196,21 +195,93 @@ def makeGraph2():
     ytemp = 0
 
     for ind in range(len(mapData)):
-        xtemp = int((((mapRes * ((ind % (mapWidth)))) + mapOrigin.position.x + 0.1)) * 10)
-        ytemp = int((((mapRes * int((ind / mapWidth))) + mapOrigin.position.y + 0.1)) * 10)
+        xtemp = int((((mapRes * ((ind % (mapWidth)))) + mapOrigin.position.x)) * 10)
+        ytemp = int((((mapRes * ((ind / mapWidth))) + mapOrigin.position.y)) * 10)
 
         #print "temp %f, %f" %(xtemp, ytemp)
         
         xMapCoord = float(xtemp) / 10
+        if xMapCoord > 0:
+            xMapCoord += 0.1
         yMapCoord = float(ytemp) / 10
-
+        if yMapCoord > 0:
+            yMapCoord += 0.1
         #print "legit %f, %f" %(xMapCoord, yMapCoord)
 
         h = coordHeuristic(xMapCoord, yMapCoord) + (mapData[ind]*100) #make it very difficult to go through obstacle
 
-        N = (xMapCoord, yMapCoord, h, mapData[ind])
+        N = Node(xMapCoord, yMapCoord, h, mapData[ind])
         
         mapGraph.append(N)
+    #for each in mapGraph:
+        #print "%f, %f" %(each.x, each.y)
+        
+    return mapGraph
+
+def aStar2(graph):
+    global robotPosex
+    global robotPosey
+    global goalPosex 
+    global goalPosey
+    global mapWidth
+
+    frontier = []
+    visited = []
+    pathList = []
+    costSoFar = 0
+    currentNode = None
+    startx = int(robotPosex / mapWidth)
+    starty = int(robotPosey % mapWidth)
+
+    currentNode = graph[starty][startx]
+    frontier.append(currentNode)
+    costSoFar += currentNode.h
+    while frontier is not empty:
+        currentNode = findLowestCost(frontier)
+     
+        #if nothing works check tolerances
+        if(currentNode.x == goalPosex) and (currentNode.y == goalPosey):
+            return pathList
+
+        frontier.remove(currentNode)
+        visited.append(currentNode)
+
+        getNeighbors(currentNode, graph)
+        
+  
+def findLowestCost(fList):
+    lowNode = Node(0, 0, 10000, 0)
+    for e in fList:
+        if e.h < lowNode.h:
+            lowNode = e
+            
+    return e
+
+def getNeighbors(ofNode, ofGraph):
+    nList = []
+    print "START %f, %f" %(ofNode.x, ofNode.y)
+    for n in ofGraph:
+        if isNeighbor(n, ofNode):
+            nList.append(n)
+            print "%f, %f" %(n.x, n.y)
+    return nList
+
+def isNeighbor(node1, node2):
+    diffx1 = node1.x - node2.x
+    diffx2 = node2.x - node1.x
+    diffy1 = node1.y - node2.y 
+    diffy2 = node2.y - node1.y
+    
+    if ((diffx1 > -0.1) and (diffx1 < 0.1)) and ((diffy1 > -0.1) and (diffy1 < 0.1)):
+        return 0
+
+    if ((diffx1 > 0.1) and (diffx1 < 0.3)) or ((diffx2 > 0.1) and (diffx2 < 0.3)) or ((diffx1 > -0.1) and (diffx1 < 0.1)) :
+        if ((diffy1 > 0.1) and (diffy1 < 0.3)) or ((diffy2 > 0.1) and (diffy2 < 0.3)) or ((diffy1 > -0.1) and (diffy1 < 0.1)):
+            return 1
+
+    #if (diffx1 > 0.1) and (diffx1 < 0.3) 
+    return 0
+
 
 
 def aStar(graph):
@@ -316,7 +387,6 @@ if __name__ == '__main__':
     global mapList
     global mapOrigin
     global nodeList
-    global mapGraph
 
     i = 1
 
@@ -338,12 +408,17 @@ if __name__ == '__main__':
     while goalPosex == 0:
         pass
     rospy.sleep(1)
-    makeGraph()
+    #makeGraph()
    # aStar(mapList)
     #rospy.sleep(1)
  
-    print mapList
-
+    #print mapList
+    mapList = makeGraph2()
+    #aStar2(mapList)
+    #for e in mapList:
+        #print "%f, %f" %(e.x, e.y)
+    print getNeighbors(Node(goalPosex, goalPosey, 100, 100), mapList)
+    
     createCell(4.2,4.2, "redCells")
     rospy.sleep(0.3)
     addCell(-3, -3, "redCells")
