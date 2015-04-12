@@ -148,7 +148,20 @@ class Node:
         self.y = y
         self.h = h
         self.chance = chance
+        self.cost = 0
         self.parent = None
+
+    def __eq__(self, other):
+        if isinstance(other, self.__class__):
+            if(self.x == other.x) and (self.y == other.y):
+                return True
+            else:
+                return False
+        else:
+            return False
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
 
 
 def makeGraph2():
@@ -195,8 +208,6 @@ def aStar2(graph):
     frontier = []
     visited = []
     pathList = []
-    costSoFar = 0
-    estCost = 0
 
     currentNode = isStart(graph)
     createCell(robotPosex,robotPosey,"greenCells")
@@ -211,7 +222,7 @@ def aStar2(graph):
         ydif = currentNode.y - goalPosey
         # if (xdif < 0.1 and xdif > -0.1 and ydif < 0.1 and ydif > -0.1):
         #     return getPath(currentNode)
-        if((currentNode.x == goalPosex) and (currentNode.y == goalPosey)):
+        if((round(currentNode.x) == round(goalPosex)) and (round(currentNode.y) == round(goalPosey))):
             print "currentNode coords %f %f" % (currentNode.x, currentNode.y)
             print "goal coords        %f %f" % (goalPosex, goalPosey)
             return getPath(currentNode)
@@ -222,27 +233,27 @@ def aStar2(graph):
         currentNeighbors = getNeighbors(currentNode, graph)
 
         for neighbor in currentNeighbors:
-
-
             addCell(neighbor.x,neighbor.y, "greenCells")
             
-
             if (neighbor in visited):
                 continue
-            tempCost = costSoFar + twoPointHeuristic(currentNode, neighbor)
-            aFuckingHugeNumber = 100000
-            tempCost += (neighbor.chance * aFuckingHugeNumber)
             
-            if (neighbor not in frontier) or (tempCost < costSoFar):
+            if (neighbor not in frontier) or (neighbor.cost< costOfPath(neighbor)):
                 neighbor.parent = currentNode
-                costSoFar = tempCost
-                estCost = costSoFar + calcHeuristic(neighbor)
-                if neighbor not in frontier:
+                
                     
-                    frontier.append(neighbor)
-                    print len(frontier)
-                    print len(visited)
+                frontier.append(neighbor)
+                print len(frontier)
+                print len(visited)
     print "A STAR DIDNT RETURN"
+
+def costOfPath(node):
+    path = getPath(node)
+    cost = 0
+    for node in path:
+        if node.parent is not None:
+            cost += twoPointHeuristic(node, node.parent)
+    return cost
 
 def isStart(listofNodes):
         global robotPosex
@@ -279,6 +290,8 @@ def getNeighbors(ofNode, ofGraph):
     for n in ofGraph:
         if isNeighbor(n, ofNode):
             nList.append(n)
+            if n.parent is not None:
+                n.cost= n.parent.cost + twoPointHeuristic(n, n.parent)
             print "%f, %f" %(n.x, n.y)
     return nList
 
