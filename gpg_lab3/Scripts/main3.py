@@ -280,7 +280,7 @@ def findLowestCost(fList):
     lowNode = Node(0, 0, 10000, 0)
     for e in fList:
         if e.h < lowNode.h:
-            lowNode = lowNode
+            lowNode = e
             
     return lowNode
 
