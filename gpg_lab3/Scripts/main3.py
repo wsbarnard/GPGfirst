@@ -149,6 +149,7 @@ class Node:
         self.h = h
         self.chance = chance
         self.cost = 0
+        self.est = 0
         self.parent = None
 
     def __eq__(self, other):
@@ -210,12 +211,15 @@ def aStar2(graph):
     pathList = []
 
     currentNode = isStart(graph)
+    print "%f %f" % (currentNode.x, currentNode.y)
     createCell(robotPosex,robotPosey,"greenCells")
 
     frontier.append(currentNode)
-    estCost = currentNode.h
+    currentNode.est = currentNode.h
     while len(frontier) > 0:
+        print len(frontier)
         currentNode = findLowestCost(frontier)
+        print "%f %f" % (currentNode.x, currentNode.y)
      
         #if nothing works check tolerances
         xdif = currentNode.x - goalPosex
@@ -234,17 +238,18 @@ def aStar2(graph):
 
         for neighbor in currentNeighbors:
             addCell(neighbor.x,neighbor.y, "greenCells")
-            
-            if (neighbor in visited):
+            tentativeCostSoFar = currentNode.cost + twoPointHeuristic(neighbor, currentNode)
+            tentativeEstCost = tentativeCostSoFar + neighbor.h
+            if (neighbor in visited) and (tentativeEstCost >= (neighbor.h + tentativeCostSoFar)):
                 continue
             
-            if (neighbor not in frontier) or (neighbor.cost< costOfPath(neighbor)):
+            if (neighbor not in frontier) or (tentativeEstCost < (neighbor.h + tentativeCostSoFar)):
                 neighbor.parent = currentNode
-                
-                    
+                neighbor.cost = tentativeCostSoFar
+                neighbor.est = tentativeEstCost 
                 frontier.append(neighbor)
-                print len(frontier)
-                print len(visited)
+                # print len(frontier)
+                # print len(visited)
     print "A STAR DIDNT RETURN"
 
 def costOfPath(node):
@@ -266,7 +271,7 @@ def isStart(listofNodes):
             # if (xdif < 0.1 and xdif > -0.1 and ydif < 0.1 and ydif > -0.1):
             #     return node
             if (xdif == 0 and ydif == 0):
-                print "this is a statement!!!!"
+                print "Found the Start!!!!"
                 return node
 
 def getPath(current):
@@ -278,8 +283,9 @@ def getPath(current):
   
 def findLowestCost(fList):
     lowNode = Node(0, 0, 10000, 0)
+    lowNode.est = 10000
     for e in fList:
-        if e.h < lowNode.h:
+        if e.est < lowNode.est:
             lowNode = e
             
     return lowNode
@@ -301,9 +307,11 @@ def isNeighbor(node1, node2):
     diffy1 = node1.y - node2.y 
     diffy2 = node2.y - node1.y
     
+    #if same coordinate, return 0
     if ((diffx1 > -0.1) and (diffx1 < 0.1)) and ((diffy1 > -0.1) and (diffy1 < 0.1)):
         return 0
 
+    #if surrounding nodes, return 1
     if ((diffx1 > 0.1) and (diffx1 < 0.3)) or ((diffx2 > 0.1) and (diffx2 < 0.3)) or ((diffx1 > -0.1) and (diffx1 < 0.1)) :
         if ((diffy1 > 0.1) and (diffy1 < 0.3)) or ((diffy2 > 0.1) and (diffy2 < 0.3)) or ((diffy1 > -0.1) and (diffy1 < 0.1)):
             return 1
