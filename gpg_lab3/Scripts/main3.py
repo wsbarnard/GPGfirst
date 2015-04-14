@@ -27,6 +27,7 @@ def createCell(x, y, topic):
     pub = rospy.Publisher(topic, GridCells, queue_size = 10)
     global greenCells
     global redCells
+    global blueCells
 
     array = [Point()]
 
@@ -42,7 +43,7 @@ def createCell(x, y, topic):
         rospy.sleep(.3)
         pub.publish(greenCells)
 
-    if topic == "redCells" :
+    elif topic == "redCells" :
         redCells.header.frame_id = "map"
         redCells.cell_width = .2
         redCells.cell_height = .2
@@ -50,11 +51,23 @@ def createCell(x, y, topic):
         rospy.sleep(.3)
         pub.publish(redCells)
 
+    elif topic == "blueCells" :
+        blueCells.header.frame_id = "map"
+        blueCells.cell_width = .2
+        blueCells.cell_height = .2
+        blueCells.cells = array
+        rospy.sleep(.3)
+        pub.publish(blueCells)
+
+    else:
+        print "***cell topic not defined in createCell()***"
+
 
 def addCell(x, y, topic):
     pub = rospy.Publisher(topic, GridCells, queue_size = 10)
     global greenCells
     global redCells
+    global blueCells
 
     newCell = Point()
     newCell.x = x
@@ -65,10 +78,16 @@ def addCell(x, y, topic):
         greenCells.cells.append(newCell)
         pub.publish(greenCells)
 
-    if topic == "redCells" :
+    elif topic == "redCells" :
         redCells.cells.append(newCell)
         pub.publish(redCells)
 
+    elif topic == "blueCells" :
+        blueCells.cells.append(newCell)
+        pub.publish(blueCells)
+
+    else:
+        print "***cell topic not defined in addCell()***"
 
 def metaDataCB(msg):
     global mapWidth
@@ -130,17 +149,18 @@ def calcHeuristic(point):
     global goalPosey
 
     #DOUBLE CHECKTHIS was robotPosex and robotPosey
-    return abs(point.x - goalPosex) + abs(point.y - goalPosey)
-
+    #return abs(point.x - goalPosex) + abs(point.y - goalPosey)
+    return ((point.x - goalPosex)**2 + (point.y - goalPosey)**2)**0.5
 
 def coordHeuristic(pointX, pointY):
     global goalPosex
-    global goalPoxey
-    # return float((int(abs(pointX - goalPosex) + abs(pointY - goalPosey)) * 10)) / 10
-    return abs(pointX - goalPosex) + abs(pointY - goalPosey)
+    global goalPosey
+    return ((pointX - goalPosex)**2 + (pointY - goalPosey)**2)**0.5
+    #return abs(pointX - goalPosex) + abs(pointY - goalPosey)
 
 def twoPointHeuristic(node1, node2):
-    return abs(node1.x - node2.x) + abs(node1.y - node2.y)
+    return ((node1.x - node2.x)**2 + (node1.y - node2.y)**2)**0.5
+    #return abs(node1.x - node2.x) + abs(node1.y - node2.y)
 
 class Node:
     def __init__(self, x, y, h, chance): #removed neighbors.
@@ -229,7 +249,9 @@ def aStar2(graph):
         if((round(currentNode.x) == round(goalPosex)) and (round(currentNode.y) == round(goalPosey))):
             print "currentNode coords %f %f" % (currentNode.x, currentNode.y)
             print "goal coords        %f %f" % (goalPosex, goalPosey)
-            return getPath(currentNode)
+            aStarPath = getPath(currentNode)
+            aStarPath.reverse()
+            return aStarPath
            
         frontier.remove(currentNode)
         visited.append(currentNode)
@@ -273,6 +295,33 @@ def isStart(listofNodes):
             if (xdif == 0 and ydif == 0):
                 print "Found the Start!!!!"
                 return node
+
+def waypoints(path):
+    createCell(path[0].x,path[0].y,"blueCells")
+    x = 0
+    for node in path:
+        if node.parent == None:
+            createCell(node.x,node.y,"blueCells")
+            print "start cell made blue"
+            continue
+        if node.parent.parent == None:
+            oldDeltaX = round((node.x - node.parent.x), 1)
+            oldDeltaY = round((node.y - node.parent.y), 1)
+            continue
+
+        newDeltaX = round((node.x - node.parent.x), 1)
+        newDeltaY = round((node.y - node.parent.y), 1)
+
+        if (oldDeltaX != newDeltaX) or (oldDeltaY != newDeltaY):
+            addCell(node.parent.x,node.parent.y,"blueCells")
+            rospy.sleep(0.1)
+
+        oldDeltaX = newDeltaX
+        oldDeltaY = newDeltaY 
+        
+        # print x
+        # x += 1
+    addCell(path[len(path)-1].x,path[len(path)-1].y,"blueCells")
 
 def getPath(current):
     finalPath = [current]
@@ -336,6 +385,7 @@ if __name__ == '__main__':
     global sub
     global greenCells
     global redCells
+    global blueCells
     global robotPosex
     global robotPosey
     global goalPosex
@@ -357,6 +407,7 @@ if __name__ == '__main__':
     mapList = []
     greenCells = GridCells()
     redCells = GridCells()
+    blueCells = GridCells()
 
 
     rospy.sleep(1)
@@ -369,12 +420,15 @@ if __name__ == '__main__':
     mapList = makeGraph2()
     finalPath = aStar2(mapList)
 
+
     print len(finalPath)
     
     createCell(robotPosex, robotPosey, "redCells")
     for pathElement in finalPath:
         addCell(pathElement.x,pathElement.y, "redCells")
         rospy.sleep(0.1)
+
+    waypoints(finalPath)
             
 
 # sleep to allow initialization, spin waits for an event (btn press)
