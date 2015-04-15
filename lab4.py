@@ -36,21 +36,13 @@ def createCell(x, y, topic):
     array[0].y = y
     array[0].z = 0
 
-    if topic == "greenCells" :
-        greenCells.header.frame_id = "map"
-        greenCells.cell_width = .2
-        greenCells.cell_height = .2
-        greenCells.cells = array
+    if topic == "purpleCells" :
+        purpleCells.header.frame_id = "map"
+        purpleCells.cell_width = .2
+        purpleCells.cell_height = .2
+        purpleCells.cells = array
         rospy.sleep(.3)
-        pub.publish(greenCells)
-
-    elif topic == "redCells" :
-        redCells.header.frame_id = "map"
-        redCells.cell_width = .2
-        redCells.cell_height = .2
-        redCells.cells = array
-        rospy.sleep(.3)
-        pub.publish(redCells)
+        pub.publish(purpleCells)
 
     elif topic == "blueCells" :
         blueCells.header.frame_id = "map"
@@ -60,13 +52,21 @@ def createCell(x, y, topic):
         rospy.sleep(.3)
         pub.publish(blueCells)
 
-    elif topic == "purpleCells" :
-        purpleCells.header.frame_id = "map"
-        purpleCells.cell_width = .2
-        purpleCells.cell_height = .2
-        purpleCells.cells = array
+    elif topic == "redCells" :
+        redCells.header.frame_id = "map"
+        redCells.cell_width = .2
+        redCells.cell_height = .2
+        redCells.cells = array
         rospy.sleep(.3)
-        pub.publish(purpleCells)
+        pub.publish(redCells)
+
+    elif topic == "greenCells" :
+        greenCells.header.frame_id = "map"
+        greenCells.cell_width = .2
+        greenCells.cell_height = .2
+        greenCells.cells = array
+        rospy.sleep(.3)
+        pub.publish(greenCells)
 
     else:
         print "***cell topic not defined in createCell()***"
@@ -209,9 +209,10 @@ def expandObstacles(graph):
             print len(neighborList)
             if (neighborNode not in expandedList) and (isObstacle(neighborNode) == False):
                 neighborNode.chance = 100 #this change is not being seen
+                neighborNode.h = neighborNode.h + (1000)
                 expandedList.append(neighborNode)
-                addCell(neighborNode.x, neighborNode.y, "purpleCells")
-                rospy.sleep(0.05)
+                addCell(neighborNode.x, neighborNode.y, "blueCells")
+                rospy.sleep(0.011)
     #this was the ineffective test of the above issue
     # print len(expandedList)
     # for n in listOfNodes:
@@ -353,11 +354,11 @@ def isStart(listofNodes):
                 return node
 
 def waypoints(path):
-    createCell(path[0].x,path[0].y,"blueCells")
+    createCell(path[0].x,path[0].y,"purpleCells")
     x = 0
     for node in path:
         if node.parent == None:
-            createCell(node.x,node.y,"blueCells")
+            createCell(node.x,node.y,"purpleCells")
             print "start cell made blue"
             continue
         if node.parent.parent == None:
@@ -369,7 +370,7 @@ def waypoints(path):
         newDeltaY = round((node.y - node.parent.y), 1)
 
         if (oldDeltaX != newDeltaX) or (oldDeltaY != newDeltaY):
-            addCell(node.parent.x,node.parent.y,"blueCells")
+            addCell(node.parent.x,node.parent.y,"purpleCells")
             rospy.sleep(0.1)
 
         oldDeltaX = newDeltaX
@@ -377,7 +378,7 @@ def waypoints(path):
         
         # print x
         # x += 1
-    addCell(path[len(path)-1].x,path[len(path)-1].y,"blueCells")
+    addCell(path[len(path)-1].x,path[len(path)-1].y,"purpleCells")
 
 def getPath(current):
     finalPath = [current]
@@ -477,7 +478,7 @@ if __name__ == '__main__':
     
     mapList = makeGraph2()
 
-    createCell(-3, -3, "purpleCells")
+    createCell(-3, -3, "blueCells")
     updatedMapList = expandObstacles(mapList)
     #getObstacles(mapList)
     finalPath = aStar2(updatedMapList)
