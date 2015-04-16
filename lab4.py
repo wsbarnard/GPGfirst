@@ -211,8 +211,8 @@ def expandObstacles(graph):
                 neighborNode.chance = 100 #this change is not being seen
                 neighborNode.h = neighborNode.h + (1000)
                 expandedList.append(neighborNode)
-                addCell(neighborNode.x, neighborNode.y, "blueCells")
-                rospy.sleep(0.011)
+                # addCell(neighborNode.x, neighborNode.y, "blueCells")
+                # rospy.sleep(0.011)
     #this was the ineffective test of the above issue
     # print len(expandedList)
     # for n in listOfNodes:
@@ -289,7 +289,7 @@ def aStar2(graph):
 
     currentNode = isStart(graph)
     print "%f %f" % (currentNode.x, currentNode.y)
-    createCell(robotPosex,robotPosey,"greenCells")
+    # createCell(robotPosex,robotPosey,"greenCells")
 
     frontier.append(currentNode)
     currentNode.est = currentNode.h
@@ -316,7 +316,7 @@ def aStar2(graph):
         currentNeighbors = getNeighbors(currentNode, graph)
 
         for neighbor in currentNeighbors:
-            addCell(neighbor.x,neighbor.y, "greenCells")
+            # addCell(neighbor.x,neighbor.y, "greenCells")
             tentativeCostSoFar = currentNode.cost + twoPointHeuristic(neighbor, currentNode)
             tentativeEstCost = tentativeCostSoFar + neighbor.h
             if (neighbor in visited) and (tentativeEstCost >= (neighbor.h + tentativeCostSoFar)):
@@ -359,7 +359,6 @@ def waypoints(path):
     for node in path:
         if node.parent == None:
             createCell(node.x,node.y,"purpleCells")
-            print "start cell made blue"
             continue
         if node.parent.parent == None:
             oldDeltaX = round((node.x - node.parent.x), 1)
@@ -478,7 +477,7 @@ if __name__ == '__main__':
     
     mapList = makeGraph2()
 
-    createCell(-3, -3, "blueCells")
+    # createCell(-3, -3, "blueCells")
     updatedMapList = expandObstacles(mapList)
     #getObstacles(mapList)
     finalPath = aStar2(updatedMapList)
