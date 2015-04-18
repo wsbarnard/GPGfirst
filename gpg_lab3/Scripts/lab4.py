@@ -26,6 +26,32 @@ from geometry_msgs.msg import Point
 from geometry_msgs.msg import PoseStamped
 from geometry_msgs.msg import PoseWithCovarianceStamped
 
+class Coord:
+    def __init__(self, x, y):
+        self.x = x 
+        self.y = y 
+
+class Node:
+    def __init__(self, x, y, h, chance): #removed neighbors.
+        self.x = x
+        self.y = y
+        self.h = h
+        self.chance = chance
+        self.cost = 0
+        self.est = 0
+        self.parent = None
+
+    def __eq__(self, other):
+        if isinstance(other, self.__class__):
+            if(self.x == other.x) and (self.y == other.y):
+                return True
+            else:
+                return False
+        else:
+            return False
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
 
 def subsSetup():
     mapMeta = rospy.Subscriber("map_metadata", MapMetaData, metaDataCB)
@@ -130,17 +156,20 @@ def mapCB(msg):
     global mapData
     global mapRes
     global mapOrigin
+    global mapWidth
 
-    resScale = 3 # must be an Int
+    resScale = 2 # must be an Int
 
     mapOrigin = msg.info.origin
     mapRes = resScale * msg.info.resolution
     rawData = msg.data 
 
-    mapData = rescale(rawData, resScale)
-
-
-    print "nav_msgs/MapMetaData: %f" % (msg.info.resolution)
+    #mapData = rescale(rawData, resScale)
+    #print rescale(rawData, resScale)
+    mapData = remakeMapData(rescale(rawData, resScale), resScale)
+    #print mapData
+    mapWidth /= resScale
+    #print "nav_msgs/MapMetaData: %f" % (msg.info.resolution)
 
 def getOdom():
     sub = rospy.Subscriber("odom", Odometry, OdomCallback)
@@ -163,9 +192,35 @@ def OdomCallback(data):
     y = py
     theta = yaw
 
+def poseCB(msg):
+    global robotPosex
+    global robotPosey
+
+    tempx = round(msg.pose.pose.position.x, 1)
+    tempy = round(msg.pose.pose.position.y, 1)
+
+    robotPosex = tempx - (tempx%mapRes)
+    robotPosey = tempy - (tempy%mapRes)
+    #print "Xpose: %f" % (robotPosex)
+    #print "Ypose: %f" % (robotPosey)
+    
+
+def goalPoseCB(msg):
+    global goalPosex
+    global goalPosey
+
+    tempx = msg.pose.position.x
+    tempy = msg.pose.position.y
+
+    goalPosex = round((tempx - (tempx%mapRes)),1)
+    goalPosey = round((tempy - (tempy%mapRes)),1)
+    #print "XgoalPose %f" % (goalPosex)
+    #print "YgoalPose %f" % (goalPosey)
+
 #publishes a twist message t othe cmd_vel_mux/input/teleop topic
 def publishTwist(speed, angSpeed):
     pub = rospy.Publisher('cmd_vel_mux/input/teleop', Twist, queue_size = 1)
+    aStarPath = getPath(currentNode)
 
     twist = Twist() 
     twist.linear.x = speed; twist.linear.y = 0; twist.linear.z = 0
@@ -206,8 +261,8 @@ def driveStraight(speed, dist):
 
         # keep driving forward
         publishTwist(speed, 0)
-        print "x %f" % (x)
-        print "y %f" % (y)
+        #print "x %f" % (x)
+        #print "y %f" % (y)
 
         # delay by poleRate
         time.sleep(poleRate)
@@ -240,7 +295,7 @@ def rotate(angle):
         else:
             publishTwist(0, -.4)
         
-        print "angGoal %f theta %f" % (angGoal, theta)
+        #print "angGoal %f theta %f" % (angGoal, theta)
 
         time.sleep(poleRate)
 
@@ -251,13 +306,46 @@ def readBumper(msg):
         return true;
 
 
+#drive from node to node, not from waypoint to waypoint
+def drivePath (waypointList):
+    #start coordinates = robot coordinates
+    start = 0
+    end = 1
+    #move from node to node 
+    #use indexing - for each integer n in the list of waypoints ranging from 
+    while end <= len(waypointList):
+        desiredTheta = findTheta(waypointList[start].x, waypointList[end].x, waypointList[start].y, waypointList[end].y)
+        rotate(desiredTheta)
+        driveStraight(0.3, distance(waypointList[start].x, waypointList[end].x, waypointList[start].y, waypointList[end].y))
+
+        start += 2
+        end += 2
+
+
+#find the angle in radians) between the current node and the node being traveled to
+def findTheta(x1, x2, y1, y2):
+    deltax = x2 - x1
+    deltay = y2 - y1
+    #desired angle in radians
+    angleInRad = math.atan2(deltay, deltax)
+    print angleInRad
+
+
+#find th edistance between (x1, y1) and (x2, y2)
+def distance(x1, x2, y1, y2):
+    #basic magnitude function
+    distance = ((x1 - x2)**2 + (y1 - y2)**2)**0.5
+    #print distance
+    return distance
+
+
 def rescale(rawListData, resScale):
     global mapRes
     global mapWidth
     rospy.sleep(0.01) 
     oldWidth = mapWidth
     mapWidth = mapWidth - (mapWidth % resScale)
-    # print mapWidth
+    #print mapWidth
     clusterList = [] 
 
     rawList = []
@@ -267,7 +355,7 @@ def rescale(rawListData, resScale):
             rawList.append(rawListData[e])
             # print len(rawList)
             # print "added a thing"    
-    #print len(rawList)
+    print len(rawList)
     #turn raw list into 2D array
 
     start = 0
@@ -279,34 +367,28 @@ def rescale(rawListData, resScale):
         start += mapWidth
         end += mapWidth
 
+
     ##PLEASE DO NOT DELETE THIS LINE
     #only comment and move. debugger for the win
     #import pdb; pdb.set_trace()
     #thing = slice(list2D, 6, 20)
-    thing2 = getClusters(list2D, 5)
-    print twoToOneD(thing2)
-    #print list2D
-
-
  
-
-
-
-    # for yInd in range (0, ((len(rawList)/(resScale**3))*(resScale*mapWidth)) + resScale, resScale*mapWidth):
-    #     for xInd in range (0, ((len(rawList)/(resScale**3))*(resScale)) + resScale, resScale):
-    #         clusterData = []
-    #         for y in range (0, resScale):
-    #             for x in range (0, resScale):
-    #                 cell = (mapWidth*y) + x + xInd + yInd
-    #                 # print "%d %d %d %d = %d" % (yInd, xInd, (y*mapWidth), x,cell)
-    #                 # if (cell <= mapWidth**2):
-    #                 clusterData.append(rawList[cell])
-
-    #     clusterList.append(checkCluster(clusterData))
-    #     print clusterData
-    # print clusterList
-    mapWidth /= resScale
+    clusterList = getClusters(list2D, resScale)
+    #print clusterList
+    # mapWidth /= resScale
     return clusterList
+
+#Returns list of wall map data from a list of clusters
+def remakeMapData(clusterList, res):
+    newList = []
+    for cluster in clusterList:
+        cluster1D = twoToOneD(cluster, res, res)
+
+        newList.append(checkCluster(cluster1D))
+
+    return newList
+
+
 
 #makes clusters of given square dimension for the given 2d array
 def getClusters(array, dim):
@@ -315,72 +397,46 @@ def getClusters(array, dim):
 
     clusters = []
 
-    while end <= len(array):
-        print start
-        clusters.append(slice(array, start, end))
-        start += dim
-        end += dim
+    for start in range(0, len(array), dim):
+        for end in range(0, len(array), dim):
+            clusters.append(slice(array, start, end, dim))
 
-    print clusters
+    #print clusters
     return clusters
 
 #turns a 2D array into a list
-def twoToOneD(array):
-    #j = len(array[0])
-    j = 0
+def twoToOneD(array, xdim, ydim):
+
     finalList = []
-    for i in range(len(array)):
-        if j > len(array[0]):
-            j = 0
-        finalList.append(array[i])
-        j += 1
+
+    for i in range(ydim):
+        for j in range(xdim):
+            # print array[i][j]
+            finalList.append(array[i][j])
  
-    print finalList
+    return finalList
 
 
 #slices 2D array to given square
-def slice(array, start, end):
+def slice(array, startx, starty, end):
+    #print end
     list = []
-    for i in range(start,end):
-        list.append(array[i][start:end])
+    for i in range(startx, startx + end):
+        list.append(array[i][starty:starty + end])
+        #print array[i][start:end]
 
     return list
 
 
-
+#Takes a list of cells and returns 100 if there is should be an obstacle, 0 if not
 def checkCluster(listOfCells):
-    for cell in listOfCells:
-        if cell > 0:
-            return 100
+    #print "start of checkCluster"
+    # print listOfCells
+    if len(filter(lambda x: x == 100, listOfCells)) > 0:
+        return 100
     return 0
 
 
-def poseCB(msg):
-    global robotPosex
-    global robotPosey
-
-    tempx = round(msg.pose.pose.position.x, 1)
-    tempy = round(msg.pose.pose.position.y, 1)
-
-    robotPosex = tempx - (tempx%mapRes)
-    robotPosey = tempy - (tempy%mapRes)
-    print "Xpose: %f" % (robotPosex)
-    print "Ypose: %f" % (robotPosey)
-    
-
-
-
-def goalPoseCB(msg):
-    global goalPosex
-    global goalPosey
-
-    tempx = msg.pose.position.x
-    tempy = msg.pose.position.y
-
-    goalPosex = round((tempx - (tempx%mapRes)),1)
-    goalPosey = round((tempy - (tempy%mapRes)),1)
-    print "XgoalPose %f" % (goalPosex)
-    print "YgoalPose %f" % (goalPosey)
 
 
 def calcHeuristic(point): 
@@ -403,27 +459,7 @@ def twoPointHeuristic(node1, node2):
     return ((node1.x - node2.x)**2 + (node1.y - node2.y)**2)**0.5
     #return abs(node1.x - node2.x) + abs(node1.y - node2.y)
 
-class Node:
-    def __init__(self, x, y, h, chance): #removed neighbors.
-        self.x = x
-        self.y = y
-        self.h = h
-        self.chance = chance
-        self.cost = 0
-        self.est = 0
-        self.parent = None
 
-    def __eq__(self, other):
-        if isinstance(other, self.__class__):
-            if(self.x == other.x) and (self.y == other.y):
-                return True
-            else:
-                return False
-        else:
-            return False
-
-    def __ne__(self, other):
-        return not self.__eq__(other)
 
 def expandObstacles(graph):
     print "Expanding obstacles"
@@ -470,15 +506,17 @@ def makeGraph2():
     global mapWidth
     global mapData
     global mapOrigin
+    global mapRes
 
     mapGraph = []
     
     xtemp = 0
     ytemp = 0
     # print len(mapData)
+    
     for ind in range(len(mapData)):
-        xMapCoord = round(((mapRes * ((ind % (mapWidth)))) + mapOrigin.position.x), 1) + 0.1
-        yMapCoord = round(((mapRes * ((ind / mapWidth))) + mapOrigin.position.y), 1) + 0.1
+        xMapCoord = round(((mapRes * ((ind % (mapWidth)))) + mapOrigin.position.x), 1) + mapRes/2
+        yMapCoord = round(((mapRes * ((ind / mapWidth))) + mapOrigin.position.y), 1) + mapRes/2
 
         #print "temp %f, %f" %(xtemp, ytemp)
         
@@ -489,8 +527,8 @@ def makeGraph2():
         N = Node(xMapCoord, yMapCoord, h, mapData[ind])
         
         mapGraph.append(N)
-    #for each in mapGraph:
-        #print "%f, %f" %(each.x, each.y)
+    for each in mapGraph:
+        print "%f, %f" %(each.x, each.y)
         
     return mapGraph
 
@@ -507,7 +545,7 @@ def aStar2(graph):
     pathList = []
 
     currentNode = isStart(graph)
-    # print "%f %f" % (currentNode.x, currentNode.y)
+    print "%f %f" % (currentNode.x, currentNode.y)
     createCell(robotPosex,robotPosey,"greenCells")
 
     frontier.append(currentNode)
@@ -574,7 +612,9 @@ def isStart(listofNodes):
                 return node
 
 def waypoints(path):
+    listOfWP = []
     createCell(path[0].x,path[0].y,"purpleCells")
+    listOfWP.append(Coord(path[0].x, path[0].y))
     x = 0
     for node in path:
         if node.parent == None:
@@ -590,6 +630,7 @@ def waypoints(path):
 
         if (oldDeltaX != newDeltaX) or (oldDeltaY != newDeltaY):
             addCell(node.parent.x,node.parent.y,"purpleCells")
+            listOfWP.append(Coord(node.parent.x, node.parent.y))
             rospy.sleep(0.1)
 
         oldDeltaX = newDeltaX
@@ -597,7 +638,10 @@ def waypoints(path):
         
         # print x
         # x += 1
+    listOfWP(append(Coord(len(path)-1, len(path-1))))
     addCell(path[len(path)-1].x,path[len(path)-1].y,"purpleCells")
+    return listOfWP
+
 
 def getPath(current):
     finalPath = [current]
@@ -627,18 +671,19 @@ def getNeighbors(ofNode, ofGraph):
     return nList
 
 def isNeighbor(node1, node2):
+    global mapRes
     diffx1 = node1.x - node2.x
     diffx2 = node2.x - node1.x
     diffy1 = node1.y - node2.y 
     diffy2 = node2.y - node1.y
     
     #if same coordinate, return 0
-    if ((diffx1 > -0.1) and (diffx1 < 0.1)) and ((diffy1 > -0.1) and (diffy1 < 0.1)):
+    if ((diffx1 > -(mapRes/2)) and (diffx1 < (mapRes/2))) and ((diffy1 > -(mapRes/2)) and (diffy1 < (mapRes/2))):
         return 0
 
     #if surrounding nodes, return 1
-    if ((diffx1 > 0.1) and (diffx1 < 0.3)) or ((diffx2 > 0.1) and (diffx2 < 0.3)) or ((diffx1 > -0.1) and (diffx1 < 0.1)) :
-        if ((diffy1 > 0.1) and (diffy1 < 0.3)) or ((diffy2 > 0.1) and (diffy2 < 0.3)) or ((diffy1 > -0.1) and (diffy1 < 0.1)):
+    if ((diffx1 > (mapRes/2)) and (diffx1 < (3*mapRes/2))) or ((diffx2 > (mapRes/2)) and (diffx2 < (3*mapRes/2))) or ((diffx1 > -(mapRes/2)) and (diffx1 < (mapRes/2))) :
+        if ((diffy1 > (mapRes/2)) and (diffy1 < (3*mapRes/2))) or ((diffy2 > (mapRes/2)) and (diffy2 < (3*mapRes/2))) or ((diffy1 > -(mapRes/2)) and (diffy1 < (mapRes/2))):
             return 1
     return 0 
 
@@ -688,31 +733,34 @@ if __name__ == '__main__':
     global odom_tf
     global odom_list
     global btn
-
-
+    print "Hellllo"
+    
+    # print getClusters(a, 2)
+    # import sys; sys.exit(1)
     rospy.sleep(1)
     subsSetup()
     rospy.sleep(0.5)
     while goalPosex == 0:
         pass
     rospy.sleep(1)
+
     
     mapList = makeGraph2()
-    print "len of mapList %f" %(len(mapList))
+
+    #print "len of mapList %f" %(len(mapList))
     createCell(0.1, 0.1, "blueCells")
+
     updatedMapList = expandObstacles(mapList)
-    print "len of updatedMapList %f" %(len(updatedMapList))
+    #print "len of updatedMapList %f" %(len(updatedMapList))
     finalPath = aStar2(updatedMapList)
 
 
-    #print len(finalPath)
-    
     createCell(robotPosex, robotPosey, "redCells")
     for pathElement in finalPath:
         addCell(pathElement.x,pathElement.y, "redCells")
         rospy.sleep(0.1)
 
-    waypoints(finalPath)
+
             
 
 # sleep to allow initialization, spin waits for an event (btn press)
