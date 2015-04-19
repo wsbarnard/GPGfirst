@@ -58,6 +58,7 @@ def subsSetup():
     mapSub = rospy.Subscriber("map", OccupancyGrid, mapCB)
     robotPose = rospy.Subscriber("initialpose", PoseWithCovarianceStamped, poseCB)
     goalPose = rospy.Subscriber("move_base_simple/goal", PoseStamped, goalPoseCB)
+    getOdom()
 
 
 
@@ -158,7 +159,7 @@ def mapCB(msg):
     global mapOrigin
     global mapWidth
 
-    resScale = 2 # must be an Int
+    resScale = 1 # must be an Int
 
     mapOrigin = msg.info.origin
     mapRes = resScale * msg.info.resolution
@@ -220,7 +221,7 @@ def goalPoseCB(msg):
 #publishes a twist message t othe cmd_vel_mux/input/teleop topic
 def publishTwist(speed, angSpeed):
     pub = rospy.Publisher('cmd_vel_mux/input/teleop', Twist, queue_size = 1)
-    aStarPath = getPath(currentNode)
+    
 
     twist = Twist() 
     twist.linear.x = speed; twist.linear.y = 0; twist.linear.z = 0
@@ -246,10 +247,10 @@ def spinWheels(u1, u2, t):
 
 #This function accepts a speed and a distance for the robot to move in a straight line
 def driveStraight(speed, dist):
-    poleRate = .1
-    tol = .1
+    poleRate = .05
+    tol = .2
     
-    time.sleep(.5)
+    rospy.sleep(.5)
 
     # set the desired x y positions
     xGoal = x + dist * math.cos(theta) 
@@ -265,16 +266,18 @@ def driveStraight(speed, dist):
         #print "y %f" % (y)
 
         # delay by poleRate
-        time.sleep(poleRate)
+        rospy.sleep(poleRate)
 
     publishTwist(0, 0) # stop robot
 
 #Accepts an angle and makes the robot rotate around it.
 def rotate(angle):
+    global theta
     poleRate = .1
     tol = .1
     
     time.sleep(.5)
+    print angle
 
     # set desired theta, if user pases a theta > 2pi or < -2pi, 
     # angle is moduloed to make put it in range of -2pi to 2pi
@@ -309,27 +312,75 @@ def readBumper(msg):
 #drive from node to node, not from waypoint to waypoint
 def drivePath (waypointList):
     #start coordinates = robot coordinates
-    start = 0
-    end = 1
+    prev = 0
+    cur = 0
+    nxt = cur + 1
+    print "waypoint list %f" %(len(waypointList))
     #move from node to node 
     #use indexing - for each integer n in the list of waypoints ranging from 
-    while end <= len(waypointList):
-        desiredTheta = findTheta(waypointList[start].x, waypointList[end].x, waypointList[start].y, waypointList[end].y)
+    while cur < len(waypointList):
+        print "nxt begin %f" % (nxt)
+        desiredTheta = findTheta2(waypointList[cur], waypointList[nxt])
         rotate(desiredTheta)
-        driveStraight(0.3, distance(waypointList[start].x, waypointList[end].x, waypointList[start].y, waypointList[end].y))
+        print "rotated"
+        driveStraight(0.25, distance(waypointList[cur].x, waypointList[nxt].x, waypointList[cur].y, waypointList[nxt].y))
+        print "drove straight"
 
-        start += 2
-        end += 2
-
+        cur += 1
+        nxt += 1
+        if cur >= 1:
+            prev += 1
+        print "done with path segment"
+        print "nxt end %f" % (nxt)
+        publishTwist(0,0)
+    print "dive path finished"
+    publishTwist(0,0)
 
 #find the angle in radians) between the current node and the node being traveled to
-def findTheta(x1, x2, y1, y2):
-    deltax = x2 - x1
-    deltay = y2 - y1
-    #desired angle in radians
-    angleInRad = math.atan2(deltay, deltax)
-    print angleInRad
+def findTheta(prev, cur, nxt):
+    
+    angleInRad = 0 
 
+    dx1 = round(cur.x - prev.x, 2)
+    dx2 = round(nxt.x - cur.x, 2)
+    dy1 = round(cur.y - prev.y, 2)
+    dy2 = round(nxt.y - cur.y, 2)
+    ddx = dx2 - dx1
+    ddy = dy2 - dy1
+
+    if(ddx == 0 and ddy < 0):
+        angleInRad = -(math.pi/4)
+    elif(ddx > 0 and ddy < 0):
+        angleInRad = -(math.pi/2)
+    elif(ddx < 0 and ddy == 0):
+        angleInRad = math.pi/4
+    elif(ddx > 0 and ddy == 0):
+        angleInRad = -(math.pi/4)
+    elif(ddx < 0 and ddy > 0):
+        angleInRad = math.pi/2
+    elif(ddx == 0 and ddy > 0):
+        angleInRad = math.pi/4
+
+    #desired angle in radians
+    # angleInRad = round(math.atan2(deltay, deltax), 4)
+
+
+    # if(deltax == 0 and deltay == )
+
+    print angleInRad
+    return round(angleInRad, 2)
+
+def findTheta2(cur, nxt):
+    global theta
+    deltax = round(nxt.x - cur.x, 2) 
+    deltay = round(nxt.y - cur.y, 2)
+    # desired angle in radians
+    angleInRad = round(math.atan2(deltay, deltax), 4)
+    print angleInRad
+    print theta
+    print (angleInRad - theta)
+
+    return (angleInRad - theta)
 
 #find th edistance between (x1, y1) and (x2, y2)
 def distance(x1, x2, y1, y2):
@@ -515,8 +566,8 @@ def makeGraph2():
     # print len(mapData)
     
     for ind in range(len(mapData)):
-        xMapCoord = round(((mapRes * ((ind % (mapWidth)))) + mapOrigin.position.x), 1) + mapRes/2
-        yMapCoord = round(((mapRes * ((ind / mapWidth))) + mapOrigin.position.y), 1) + mapRes/2
+        xMapCoord = round(((mapRes * ((ind % (mapWidth)))) + mapOrigin.position.x) + .1, 1)
+        yMapCoord = round(((mapRes * ((ind / mapWidth))) + mapOrigin.position.y) + .1 , 1) 
 
         #print "temp %f, %f" %(xtemp, ytemp)
         
@@ -527,8 +578,8 @@ def makeGraph2():
         N = Node(xMapCoord, yMapCoord, h, mapData[ind])
         
         mapGraph.append(N)
-    for each in mapGraph:
-        print "%f, %f" %(each.x, each.y)
+    #for each in mapGraph:
+        #print "%f, %f" %(each.x, each.y)
         
     return mapGraph
 
@@ -544,8 +595,11 @@ def aStar2(graph):
     visited = []
     pathList = []
 
+    print len(graph)
     currentNode = isStart(graph)
+    print "%f %f" % (robotPosex, robotPosey)
     print "%f %f" % (currentNode.x, currentNode.y)
+
     createCell(robotPosex,robotPosey,"greenCells")
 
     frontier.append(currentNode)
@@ -602,11 +656,12 @@ def isStart(listofNodes):
         global robotPosey
 
         for node in listofNodes:
+            # if node == Node(robotPosex, robotPosey, 0, 0):
+            #     return node
+
             xdif = round((node.x - robotPosex), 1)
             ydif = round((node.y - robotPosey), 1)
-            # print "%f %f" % (xdif, ydif)
-            # if (xdif < 0.1 and xdif > -0.1 and ydif < 0.1 and ydif > -0.1):
-            #     return node
+            
             if (xdif == 0 and ydif == 0):
                 print "Found the Start!!!!"
                 return node
@@ -638,7 +693,7 @@ def waypoints(path):
         
         # print x
         # x += 1
-    listOfWP(append(Coord(len(path)-1, len(path-1))))
+    listOfWP.append(Coord(len(path)-1, len(path)-1))
     addCell(path[len(path)-1].x,path[len(path)-1].y,"purpleCells")
     return listOfWP
 
@@ -706,12 +761,15 @@ if __name__ == '__main__':
     global nodeList
 
     #for drive
-    #initialize x,y,theta
-    x = 0
-    y = 0
-    theta = 0
+    global pub
+    global pose
+    global odom_tf
+    global odom_list
+    global theta
+    print "Hellllo"
 
-    
+    #for drive
+    #initialize x,y,theta
 
     i = 1
 
@@ -727,23 +785,21 @@ if __name__ == '__main__':
     blueCells = GridCells()
     purpleCells = GridCells()
 
-    #for drive
-    global pub
-    global pose
-    global odom_tf
-    global odom_list
-    global btn
-    print "Hellllo"
+
+    
     
     # print getClusters(a, 2)
     # import sys; sys.exit(1)
     rospy.sleep(1)
     subsSetup()
     rospy.sleep(0.5)
+
     while goalPosex == 0:
         pass
     rospy.sleep(1)
 
+    x = robotPosex
+    y = robotPosey
     
     mapList = makeGraph2()
 
@@ -755,12 +811,16 @@ if __name__ == '__main__':
     finalPath = aStar2(updatedMapList)
 
 
+
     createCell(robotPosex, robotPosey, "redCells")
     for pathElement in finalPath:
         addCell(pathElement.x,pathElement.y, "redCells")
         rospy.sleep(0.1)
 
-
+    loWP = waypoints(finalPath)
+    print len(loWP)
+    drivePath(loWP)
+    publishTwist(0, 0)
             
 
 # sleep to allow initialization, spin waits for an event (btn press)
