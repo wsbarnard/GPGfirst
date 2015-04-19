@@ -159,10 +159,12 @@ def mapCB(msg):
     global mapOrigin
     global mapWidth
 
-    resScale = 1 # must be an Int
+    resScale = 3 # must be an Int
 
     mapOrigin = msg.info.origin
     mapRes = resScale * msg.info.resolution
+    print "originalRes: %f" % (msg.info.resolution)
+    print "mapRes : %f" % (mapRes)
     rawData = msg.data 
 
     #mapData = rescale(rawData, resScale)
@@ -196,11 +198,12 @@ def OdomCallback(data):
 def poseCB(msg):
     global robotPosex
     global robotPosey
+    global mapRes
 
-    tempx = round(msg.pose.pose.position.x, 1)
-    tempy = round(msg.pose.pose.position.y, 1)
+    tempx = round(msg.pose.pose.position.x, 3)
+    tempy = round(msg.pose.pose.position.y, 3)
 
-    robotPosex = tempx - (tempx%mapRes)
+    robotPosex = tempx - (tempx%mapRes) 
     robotPosey = tempy - (tempy%mapRes)
     #print "Xpose: %f" % (robotPosex)
     #print "Ypose: %f" % (robotPosey)
@@ -209,12 +212,13 @@ def poseCB(msg):
 def goalPoseCB(msg):
     global goalPosex
     global goalPosey
+    global mapRes
 
     tempx = msg.pose.position.x
     tempy = msg.pose.position.y
 
-    goalPosex = round((tempx - (tempx%mapRes)),1)
-    goalPosey = round((tempy - (tempy%mapRes)),1)
+    goalPosex = round((tempx - (tempx%mapRes)),3)
+    goalPosey = round((tempy - (tempy%mapRes)),3)
     #print "XgoalPose %f" % (goalPosex)
     #print "YgoalPose %f" % (goalPosey)
 
@@ -341,10 +345,10 @@ def findTheta(prev, cur, nxt):
     
     angleInRad = 0 
 
-    dx1 = round(cur.x - prev.x, 2)
-    dx2 = round(nxt.x - cur.x, 2)
-    dy1 = round(cur.y - prev.y, 2)
-    dy2 = round(nxt.y - cur.y, 2)
+    dx1 = round(cur.x - prev.x, 3)
+    dx2 = round(nxt.x - cur.x, 3)
+    dy1 = round(cur.y - prev.y, 3)
+    dy2 = round(nxt.y - cur.y, 3)
     ddx = dx2 - dx1
     ddy = dy2 - dy1
 
@@ -368,14 +372,14 @@ def findTheta(prev, cur, nxt):
     # if(deltax == 0 and deltay == )
 
     print angleInRad
-    return round(angleInRad, 2)
+    return round(angleInRad, 3)
 
 def findTheta2(cur, nxt):
     global theta
-    deltax = round(nxt.x - cur.x, 2) 
-    deltay = round(nxt.y - cur.y, 2)
-    # desired angle in radians
-    angleInRad = round(math.atan2(deltay, deltax), 4)
+    deltax = round(nxt.x - cur.x, 3) 
+    deltay = round(nxt.y - cur.y, 3)
+    # desired angle in radian3
+    angleInRad = round(math.atan2(deltay, deltax), 3)
     print angleInRad
     print theta
     print (angleInRad - theta)
@@ -566,8 +570,8 @@ def makeGraph2():
     # print len(mapData)
     
     for ind in range(len(mapData)):
-        xMapCoord = round(((mapRes * ((ind % (mapWidth)))) + mapOrigin.position.x) + .1, 1)
-        yMapCoord = round(((mapRes * ((ind / mapWidth))) + mapOrigin.position.y) + .1 , 1) 
+        xMapCoord = round(((mapRes * ((ind % (mapWidth)))) + mapOrigin.position.x) + .1, 3)
+        yMapCoord = round(((mapRes * ((ind / mapWidth))) + mapOrigin.position.y) + .1 , 3) 
 
         #print "temp %f, %f" %(xtemp, ytemp)
         
@@ -578,8 +582,8 @@ def makeGraph2():
         N = Node(xMapCoord, yMapCoord, h, mapData[ind])
         
         mapGraph.append(N)
-    #for each in mapGraph:
-        #print "%f, %f" %(each.x, each.y)
+    # for each in mapGraph:
+    #     print "%f, %f" %(each.x, each.y)
         
     return mapGraph
 
@@ -590,6 +594,7 @@ def aStar2(graph):
     global goalPosex 
     global goalPosey
     global mapWidth
+    global mapRes
 
     frontier = []
     visited = []
@@ -597,6 +602,7 @@ def aStar2(graph):
 
     print len(graph)
     currentNode = isStart(graph)
+    # rospy.sleep(1)
     print "%f %f" % (robotPosex, robotPosey)
     print "%f %f" % (currentNode.x, currentNode.y)
 
@@ -615,7 +621,7 @@ def aStar2(graph):
         ydif = currentNode.y - goalPosey
         # if (xdif < 0.1 and xdif > -0.1 and ydif < 0.1 and ydif > -0.1):
         #     return getPath(currentNode)
-        if((round(currentNode.x) == round(goalPosex)) and (round(currentNode.y) == round(goalPosey))):
+        if((currentNode.x > goalPosex - mapRes) and (currentNode.x < goalPosex + mapRes) and (currentNode.y > goalPosey - mapRes) and (currentNode.y < goalPosey + mapRes)):
             # print "currentNode coords %f %f" % (currentNode.x, currentNode.y)
             # print "goal coords        %f %f" % (goalPosex, goalPosey)
             aStarPath = getPath(currentNode)
@@ -654,15 +660,18 @@ def costOfPath(node):
 def isStart(listofNodes):
         global robotPosex
         global robotPosey
+        global mapRes
+        print "isStart() is running"
 
+        print len(listofNodes)
         for node in listofNodes:
-            # if node == Node(robotPosex, robotPosey, 0, 0):
-            #     return node
 
-            xdif = round((node.x - robotPosex), 1)
-            ydif = round((node.y - robotPosey), 1)
+            # print "node xy : %f %f" % (node.x, node.y)
+            # print "start xy: %f %f" % (robotPosex, robotPosey)
+            xdif = round((node.x - robotPosex), 3)
+            ydif = round((node.y - robotPosey), 3)
             
-            if (xdif == 0 and ydif == 0):
+            if ((xdif > -mapRes) and (xdif < mapRes) and (ydif > -mapRes) and (ydif < mapRes)):
                 print "Found the Start!!!!"
                 return node
 
@@ -676,12 +685,12 @@ def waypoints(path):
             createCell(node.x,node.y,"purpleCells")
             continue
         if node.parent.parent == None:
-            oldDeltaX = round((node.x - node.parent.x), 1)
-            oldDeltaY = round((node.y - node.parent.y), 1)
+            oldDeltaX = round((node.x - node.parent.x), 3)
+            oldDeltaY = round((node.y - node.parent.y), 3)
             continue
 
-        newDeltaX = round((node.x - node.parent.x), 1)
-        newDeltaY = round((node.y - node.parent.y), 1)
+        newDeltaX = round((node.x - node.parent.x), 3)
+        newDeltaY = round((node.y - node.parent.y), 3)
 
         if (oldDeltaX != newDeltaX) or (oldDeltaY != newDeltaY):
             addCell(node.parent.x,node.parent.y,"purpleCells")
