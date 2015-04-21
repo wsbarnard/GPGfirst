@@ -1,10 +1,22 @@
 #!/usr/bin/env python
 
+##PLEASE DO NOT DELETE THIS LINE
+#only comment and move. debugger for the win
+#import pdb; pdb.set_trace()
+   
+
 #General imports
 import rospy
 import tf
 import time
 import math
+
+#other files
+from mapCreate import *
+from drive import *
+from aStar import *
+
+import globalVars
 
 # for driving
 from tf.transformations import euler_from_quaternion
@@ -34,28 +46,20 @@ def subsSetup():
 
 #Callback to get width
 def metaDataCB(msg):
-    global mapWidth
+    globalVars.mapWidth = msg.width
 
-    mapWidth = msg.width
-
-#
 #Callback for map information
 def mapCB(msg):
-    global mapData
-    global mapRes
-    global mapOrigin
-    global mapWidth
-
     resScale = 3 # must be an Int
 
-    mapOrigin = msg.info.origin
-    mapRes = resScale * msg.info.resolution
+    globalVars.mapOrigin = msg.info.origin
+    globalVars.mapRes = resScale * msg.info.resolution
     print "originalRes: %f" % (msg.info.resolution)
-    print "mapRes : %f" % (mapRes)
+    print "globalVars.mapRes : %f" % (globalVars.mapRes)
     rawData = msg.data 
 
-    mapData = remakeMapData(rescale(rawData, resScale), resScale)
-    mapWidth /= resScale
+    globalVars.mapData = remakeMapData(rescale(rawData, resScale), resScale)
+    globalVars.mapWidth /= resScale
 
 #Subscriber for odometry
 def getOdom():
@@ -69,80 +73,32 @@ def OdomCallback(data):
     q = [quat.x, quat.y, quat.z, quat.w]
     roll, pitch, yaw, = euler_from_quaternion(q)
 
-    # sets the global
-    global x
-    global y
-    global theta
-
     x = px
     y = py
-    theta = yaw
+    globalVars.theta = yaw
 
 #Callback for robot position
 def poseCB(msg):
-    global robotPosex
-    global robotPosey
-    global mapRes
-
     tempx = round(msg.pose.pose.position.x, 3)
     tempy = round(msg.pose.pose.position.y, 3)
 
-    robotPosex = tempx - (tempx%mapRes) 
-    robotPosey = tempy - (tempy%mapRes)
-    #print "Xpose: %f" % (robotPosex)
-    #print "Ypose: %f" % (robotPosey)
+    globalVars.robotPoseX = tempx - (tempx % globalVars.mapRes) 
+    globalVars.robotPoseY = tempy - (tempy % globalVars.mapRes)
     
 #Callback for goal position
 def goalPoseCB(msg):
-    global goalPosex
-    global goalPosey
-    global mapRes
-
     tempx = msg.pose.position.x
     tempy = msg.pose.position.y
 
-    goalPosex = round((tempx - (tempx%mapRes)),3)
-    goalPosey = round((tempy - (tempy%mapRes)),3)
+    globalVars.goalPoseX = round((tempx - (tempx % globalVars.mapRes)),3)
+    globalVars.goalPoseY = round((tempy - (tempy % globalVars.mapRes)),3)
 
 
 if __name__ == '__main__':
-    rospy.init_node('gpg_lab3_node')
-
-    global sub
-    global greenCells
-    global redCells
-    global blueCells
-    global purpleCells
-    global robotPosex
-    global robotPosey
-    global goalPosex
-    global goalPosey
-    global mapData 
-    global mapWidth
-    global mapOrigin
-    global nodeList
-
-    #for drive
-    global pub
-    global pose
-    global odom_tf
-    global odom_list
-    global theta
+    rospy.init_node('FinalProject')
     print "Hellllo"
 
     i = 1
-
-    robotPosex = 0
-    robotPosey = 0
-    goalPosex = 0
-    goalPosey = 0
-    mapWidth = 0
-    mapData = []
-    mapList = []
-    greenCells = GridCells()
-    redCells = GridCells()
-    blueCells = GridCells()
-    purpleCells = GridCells()
 
     #setup subscriptions
     rospy.sleep(1)
@@ -150,13 +106,13 @@ if __name__ == '__main__':
     rospy.sleep(0.5)
 
     #wait for start and goal to be defined
-    while goalPosex == 0:
+    while globalVars.goalPoseX == 0:
         pass
     rospy.sleep(1)
 
     #Do we still need this?
-    x = robotPosex
-    y = robotPosey
+    x = globalVars.robotPoseX
+    y = globalVars.robotPoseY
     
     #Create a list of nodes 
     mapList = makeGraph2()
@@ -166,19 +122,15 @@ if __name__ == '__main__':
     updatedMapList = expandObstacles(mapList)
     finalPath = aStar2(updatedMapList)
 
-    createCell(robotPosex, robotPosey, "redCells")
+    createCell(globalVars.robotPoseX, globalVars.robotPoseY, "redCells")
     for pathElement in finalPath:
         addCell(pathElement.x,pathElement.y, "redCells")
         rospy.sleep(0.1)
 
     loWP = waypoints(finalPath)
-    print len(loWP)
+
     drivePath(loWP)
     publishTwist(0, 0)
             
-
-    # sleep to allow initialization, spin waits for an event (btn press)
-    time.sleep(1)
-
     while not rospy.is_shutdown():
         rospy.spin()

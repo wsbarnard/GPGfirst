@@ -1,11 +1,11 @@
 #!/usr/bin/env python
+from geometry_msgs.msg import Point
+from nav_msgs.msg import GridCells
+import rospy
+import globalVars
 
 #Create the first cell of given color, allow next cells to be added
 def createCell(x, y, topic):
-    global greenCells
-    global redCells
-    global blueCells
-    global purpleCells
     pub = rospy.Publisher(topic, GridCells, queue_size = 10)
 
     array = [Point()]
@@ -15,36 +15,36 @@ def createCell(x, y, topic):
     array[0].z = 0
 
     if topic == "purpleCells" :
-        purpleCells.header.frame_id = "map"
-        purpleCells.cell_width = mapRes
-        purpleCells.cell_height = mapRes
-        purpleCells.cells = array
+        globalVars.purpleCells.header.frame_id = "map"
+        globalVars.purpleCells.cell_width = globalVars.mapRes
+        globalVars.purpleCells.cell_height = globalVars.mapRes
+        globalVars.purpleCells.cells = array
         rospy.sleep(.3)
-        pub.publish(purpleCells)
+        pub.publish(globalVars.purpleCells)
 
     elif topic == "blueCells" :
-        blueCells.header.frame_id = "map"
-        blueCells.cell_width = mapRes
-        blueCells.cell_height = mapRes
-        blueCells.cells = array
+        globalVars.blueCells.header.frame_id = "map"
+        globalVars.blueCells.cell_width = globalVars.mapRes
+        globalVars.blueCells.cell_height = globalVars.mapRes
+        globalVars.blueCells.cells = array
         rospy.sleep(.3)
-        pub.publish(blueCells)
+        pub.publish(globalVars.blueCells)
 
     elif topic == "redCells" :
-        redCells.header.frame_id = "map"
-        redCells.cell_width = mapRes
-        redCells.cell_height = mapRes
-        redCells.cells = array
+        globalVars.redCells.header.frame_id = "map"
+        globalVars.redCells.cell_width = globalVars.mapRes
+        globalVars.redCells.cell_height = globalVars.mapRes
+        globalVars.redCells.cells = array
         rospy.sleep(.3)
-        pub.publish(redCells)
+        pub.publish(globalVars.redCells)
 
     elif topic == "greenCells" :
-        greenCells.header.frame_id = "map"
-        greenCells.cell_width = mapRes
-        greenCells.cell_height = mapRes
-        greenCells.cells = array
+        globalVars.greenCells.header.frame_id = "map"
+        globalVars.greenCells.cell_width = globalVars.mapRes
+        globalVars.greenCells.cell_height = globalVars.mapRes
+        globalVars.greenCells.cells = array
         rospy.sleep(.3)
-        pub.publish(greenCells)
+        pub.publish(globalVars.greenCells)
 
     else:
         print "***cell topic not defined in createCell()***"
@@ -52,31 +52,26 @@ def createCell(x, y, topic):
 #Add to existing cells of given color
 def addCell(x, y, topic):
     pub = rospy.Publisher(topic, GridCells, queue_size = 10)
-    global greenCells
-    global redCells
-    global blueCells
-    global purpleCells
-
     newCell = Point()
     newCell.x = x
     newCell.y = y
     newCell.z = 0
 
     if topic == "greenCells" :
-        greenCells.cells.append(newCell)
-        pub.publish(greenCells)
+        globalVars.greenCells.cells.append(newCell)
+        pub.publish(globalVars.greenCells)
 
     elif topic == "redCells" :
-        redCells.cells.append(newCell)
-        pub.publish(redCells)
+        globalVars.redCells.cells.append(newCell)
+        pub.publish(globalVars.redCells)
 
     elif topic == "blueCells" :
-        blueCells.cells.append(newCell)
-        pub.publish(blueCells)
+        globalVars.blueCells.cells.append(newCell)
+        pub.publish(globalVars.blueCells)
 
     elif topic == "purpleCells" :
-        purpleCells.cells.append(newCell)
-        pub.publish(purpleCells)
+        globalVars.purpleCells.cells.append(newCell)
+        pub.publish(globalVars.purpleCells)
 
     else:
         print "***cell topic not defined in addCell()***"

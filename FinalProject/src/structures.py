@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-
 #Class definition for coordinate point
 class Coord:
     def __init__(self, x, y):
@@ -8,7 +7,7 @@ class Coord:
 
 #Class definition for Node 
 class Node:
-    def __init__(self, x, y, h, chance): #removed neighbors.
+    def __init__(self, x, y, h, chance): 
         self.x = x
         self.y = y
         self.h = h

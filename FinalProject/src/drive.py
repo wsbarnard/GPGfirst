@@ -1,5 +1,11 @@
 #!/usr/bin/env python
+import rospy
+import math
+import time
+import globalVars
 
+from geometry_msgs.msg import Twist
+from calculate import *
 
 #publishes a twist message t othe cmd_vel_mux/input/teleop topic
 def publishTwist(speed, angSpeed):
@@ -44,8 +50,6 @@ def driveStraight(speed, dist):
 
         # keep driving forward
         publishTwist(speed, 0)
-        #print "x %f" % (x)
-        #print "y %f" % (y)
 
         # delay by poleRate
         rospy.sleep(poleRate)
@@ -54,16 +58,15 @@ def driveStraight(speed, dist):
 
 #Accepts an angle and makes the robot rotate around it.
 def rotate(angle):
-    global theta
     poleRate = .1
     tol = .1
     
     time.sleep(.5)
     print angle
 
-    # set desired theta, if user pases a theta > 2pi or < -2pi, 
+    # set desired globalVars.theta, if user pases a globalVars.theta > 2pi or < -2pi, 
     # angle is moduloed to make put it in range of -2pi to 2pi
-    angGoal = theta + (angle%(2*math.pi))
+    angGoal = globalVars.theta + (angle%(2*math.pi))
 
     # constrain further to -pi to pi because odom range is -pi to pi
     if angGoal >= math.pi:
@@ -73,14 +76,12 @@ def rotate(angle):
         angGoal += (2*math.pi)
 
     #while not at goal 
-    while(theta < angGoal - tol or theta > angGoal + tol):
+    while(globalVars.theta < angGoal - tol or globalVars.theta > angGoal + tol):
         #spin direction based on sign of input
         if angle >= 0:
             publishTwist(0, .4)
         else:
             publishTwist(0, -.4)
-        
-        #print "angGoal %f theta %f" % (angGoal, theta)
 
         time.sleep(poleRate)
 
