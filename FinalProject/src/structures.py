@@ -28,3 +28,10 @@ class Node:
     def __ne__(self, other):
         return not self.__eq__(other)
 
+class Fcell:
+    def __init__(self, node):
+        self.x = node.x
+        self.y = node.y
+        self.cellType = node.chance #-1 -> unexplored; 0 -> open; -> >100 -> obstacle
+        self.edge = 0 #0 if not a current frontier edge, 1 if frontier edge
+        self.fneighbors = []
