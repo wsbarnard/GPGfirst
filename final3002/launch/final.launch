@@ -1,0 +1,41 @@
+<launch>
+	<!-- General Parameters -->
+	<!-- We may want to change that to false so we don't use simulation time? Look up how that works -->
+	<param name="use_sim_time" value="true" />
+	<rosparam file=$(find final3002)/params/ros.yaml"/>
+
+	<!-- We do not need stage simulator stuff, but do we need to replace it? -->
+
+	<!-- Start Operator to control the robot -->
+	<node name="Operator" pkg="nav2d_operator" type="operator">
+	      <remap from="scan" to="base_scan"/>
+	      <rosparam file="$(find final3002)/params/operator.yaml"/>
+	      <rosparam file="$(find final3002)/params/costmap.yaml" ns="local_map" />
+	</node>
+
+	<!-- Start Mapper to generate map from laser scans -->
+	<node name="Mapper" pkg="nav2d_karto" type="mapper">
+	      <remap from="scan" to="base_scan"/>
+	      <rosparam file="$(find final3002)/params/mapper.yaml"/>
+	</node>
+
+	<!-- Start the Navigator to move the robot autonomously -->
+	<node name="Navigator" pkg="nav2d_navigator" type="navigator">
+	      <rosparam file="$(find final3002)/params/navigator.yaml"/>
+	</node>
+	
+	<!-- Get the map from the first scan -->
+	<node name="GetMap" pgk="nav2d_navigator" type="get_map_client" />
+	<node name="Explore" pkg="nav2d_navigator" type="explore_client" />
+	<node name="SetGoal" pkg="nav2d_navigator" type="set_goal_client" />
+
+	<!-- Do not need the joystick or remote-controller for operation -->
+
+	<!--Turtlebot model for fancy visualization -->
+	<!-- Will most likely not work and need to be commented out -->
+	<include file="$(find turtlebot)/turtlebot_description/urdf/turtlebot_gazebo.urdf.xacro>
+
+	<-- RVIZ to view visualization -->
+	<node name="RVIZ" pkg="rviz" type="rviz" args=" -d $(find nav2d_tutorials)/param/tutorial3.rviz" />
+
+</launch>
