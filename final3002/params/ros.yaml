@@ -10,7 +10,7 @@ map_frame: map
 
 ### ROS topics ############################################
 map_topic: map
-laser_topic: base_scan
+laser_topic: scan
 
 ### ROS services ##########################################
 map_service: static_map

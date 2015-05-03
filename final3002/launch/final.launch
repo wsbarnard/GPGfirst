@@ -1,10 +1,14 @@
 <launch>
 	<!-- General Parameters -->
 	<!-- We may want to change that to false so we don't use simulation time? Look up how that works -->
-	<param name="use_sim_time" value="true" />
+	<param name="use_sim_time" value="false" />
 	<rosparam file="$(find final3002)/params/ros.yaml"/>
 
 	<!-- We do not need stage simulator stuff, but do we need to replace it? -->
+	<!-- Start Stage simulator with a given environment -->
+	<!-- <node name="Stage" pkg="stage_ros" type="stageros" args="$(find nav2d_tutorials)/world/tutorial.world"> -->
+		<!-- <param name="base_watchdog_timeout" value="0" /> -->
+	<!-- </node> -->
 
 	<!-- Start Operator to control the robot -->
 	<node name="Operator" pkg="nav2d_operator" type="operator">
@@ -13,11 +17,28 @@
 	      <rosparam file="$(find final3002)/params/costmap.yaml" ns="local_map" />
 	</node>
 
+	<include file="$(find turtlebot_bringup)/launch/3dsensor.launch">
+    	<arg name="rgb_processing" value="false" />
+    	<arg name="depth_registration" value="false" />
+    	<arg name="depth_processing" value="false" />
+    
+    <!-- We must specify an absolute topic name because if not it will be prefixed by "$(arg camera)".
+         Probably is a bug in the nodelet manager: https://github.com/ros/nodelet_core/issues/7 --> 
+   		<arg name="scan_topic" value="/scan" />
+  	</include>
+
+  	<include file="$(find turtlebot_navigation)/launch/includes/gmapping.launch.xml"/>
+
+  	<include file="$(find turtlebot_navigation)/launch/includes/move_base.launch.xml"/>
+
+
+
+
 	<!-- Start Mapper to generate map from laser scans -->
-	<node name="Mapper" pkg="nav2d_karto" type="mapper">
-	      <remap from="scan" to="base_scan"/>
-	      <rosparam file="$(find final3002)/params/mapper.yaml"/>
-	</node>
+	<!-- <node name="Mapper" pkg="nav2d_karto" type="mapper"> -->
+	<!--      <remap from="scan" to="base_scan"/> -->
+	<!--      <rosparam file="$(find final3002)/params/mapper.yaml"/> -->
+	<!-- </node> -->
 
 	<!-- Start the Navigator to move the robot autonomously -->
 	<node name="Navigator" pkg="nav2d_navigator" type="navigator">
@@ -25,7 +46,7 @@
 	</node>
 	
 	<!-- Get the map from the first scan -->
-	<node name="GetMap" pgk="nav2d_navigator" type="get_map_client" />
+	<node name="GetMap" pkg="nav2d_navigator" type="get_map_client" />
 	<node name="Explore" pkg="nav2d_navigator" type="explore_client" />
 	<node name="SetGoal" pkg="nav2d_navigator" type="set_goal_client" />
 
@@ -33,7 +54,7 @@
 
 	<!--Turtlebot model for fancy visualization -->
 	<!-- Will most likely not work and need to be commented out -->
-	<include file="$(find turtlebot)/turtlebot_description/urdf/turtlebot_gazebo.urdf.xacro"/>
+	<!-- <include file="$(find p2os_urdf)/launch/pioneer3at_urdf.launch" /> -->
 
 	<!-- RVIZ to view visualization -->
 	<node name="RVIZ" pkg="rviz" type="rviz" args=" -d $(find nav2d_tutorials)/param/tutorial3.rviz" />
