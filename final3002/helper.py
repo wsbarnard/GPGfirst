@@ -29,7 +29,7 @@ def publishCopy():
     pub1 = rospy.Publisher('cmd_vel_mux/input/teleop', Twist, queue_size = 1)
 
     twist = Twist() 
-    twist.linear.x = speed; twist.linear.y = 0; twist.linear.z = 0
+    twist.linear.x = speed/3; twist.linear.y = 0; twist.linear.z = 0
     twist.angular.x = 0; twist.angular.y = 0; twist.angular.z = angSpeed
     pub1.publish(twist)
 
@@ -42,7 +42,7 @@ def publishOriginal():
 
     twist = Twist()
     twist.linear.x = speed; twist.linear.y = 0; twist.linear.z = 0
-    twist.angular.x = 0; twist.angular.y = 0; twist.angular.z = angSpeed/4
+    twist.angular.x = 0; twist.angular.y = 0; twist.angular.z = angSpeed
     pub2.publish(twist)
 
 if __name__ == '__main__':
@@ -51,6 +51,8 @@ if __name__ == '__main__':
     global angSpeed
     global pub1
     global pub2
+    speed = 0
+    angSpeed = 0
  
     subscribeOriginal()
     rospy.init_node('wsbarnard_lab2_node')

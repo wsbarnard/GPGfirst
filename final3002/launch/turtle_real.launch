@@ -6,7 +6,7 @@
 
 	<!-- Start the Operator to control the simulated robot -->
 	<node name="Operator" pkg="nav2d_operator" type="operator" >
-		<remap from="scan" to="base_scan"/>
+		<!-- <remap from="scan" to="base_scan"/> -->
 		
 		<rosparam file="$(find final3002)/params/operator.yaml"/>
 		<rosparam file="$(find final3002)/params/costmap.yaml" ns="local_map" />
@@ -14,7 +14,7 @@
 
 	<!-- Start Mapper to genreate map from laser scans -->
 	<node name="Mapper" pkg="nav2d_karto" type="mapper">
-		<remap from="scan" to="base_scan"/>
+		<!-- remap from="scan" to="base_scan"/ -->
 		
 		<rosparam file="$(find final3002)/params/mapper.yaml"/>
 	</node>
